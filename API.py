@@ -56,5 +56,83 @@ def login():
     else:
         return jsonify({'message': 'Invalid username or password'}), 401
     
+@app.route('/flashcards', methods=['GET'])
+def get_flashcards():
+    flashcards = FlashCard.query.all()
+    flashcards_info = [{'id': flashcard.id, 'title': flashcard.title, 'content': flashcard.content} for flashcard in flashcards]
+    return flashcards_info
+
+@app.route('/flashcards/<string:username>', methods=['GET'])
+def get_flashcards_by_username(username):
+    user = User.query.filter_by(username=username).first()
+
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    flashcards = FlashCard.query.filter_by(user_id=user.id).all()
+    return [{'id': flashcard.id, 'title': flashcard.title, 'content': flashcard.content} for flashcard in flashcards]
+
+
+@app.route('/flashcards/add', methods=['POST'])
+def add_flashcard():
+    data = request.get_json()
+    username = data.get('username')
+    title = data.get('title')
+    content = data.get('content')
+
+    if not all([username, title, content]):
+        return jsonify({'message': 'Missing required fields'}), 400
+
+    user = User.query.filter_by(username=username).first()
+
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    flashcard = FlashCard(title=title, content=content, user_id=user.id)
+    db.session.add(flashcard)
+    db.session.commit()
+    return jsonify({'message': 'Flashcard added successfully'}), 201
+
+@app.route('/flashcards/search/<string:name>', methods=['GET'])
+def findAllByName(name):
+    flashcards = FlashCard.query.filter(FlashCard.title.ilike(f"{name}%")).all()
+    if not flashcards:
+        return []
+
+    return [{'id': flashcard.id, 'title': flashcard.title, 'content': flashcard.content} for flashcard in flashcards]
+
+@app.route('/flashcards/delete/<int:flashcard_id>', methods=['DELETE'])
+def delete_flashcard(flashcard_id):
+    flashcard = FlashCard.query.get(flashcard_id)
+    
+    if not flashcard:
+        return jsonify({'message': 'Flashcard not found'}), 404
+    
+    db.session.delete(flashcard)
+    db.session.commit()
+    
+    return jsonify({'message': 'Flashcard deleted successfully'}), 200
+
+
+@app.route('/flashcards/edit/<int:flashcard_id>', methods=['PUT'])
+def edit_flashcard(flashcard_id):
+    data = request.get_json()
+    title = data.get('title')
+    content = data.get('content')
+
+    if not all([title, content]):
+        return jsonify({'message': 'Missing required fields'}), 400
+
+    flashcard = FlashCard.query.get(flashcard_id)
+
+    if not flashcard:
+        return jsonify({'message': 'Flashcard not found'}), 404
+
+    flashcard.title = title
+    flashcard.content = content
+    db.session.commit()
+
+    return jsonify({'message': 'Flashcard updated successfully'}), 200
+    
 if __name__ == '__main__':
     app.run(debug=True)
