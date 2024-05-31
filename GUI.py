@@ -150,18 +150,10 @@ class MenuScreen(ctk.CTkFrame):
         self.master.switch_screen(CreateFlashcardScreen, username=self.username)
 
     def show_flashcards(self):
-        pass
-        #self.master.switch_screen(FlashcardsScreen, username=self.username)
+        self.master.switch_screen(SearchFlashcardsScreen, username=self.username)
 
     def show_my_flashcards(self):
-        pass
-        #self.master.switch_screen(MyFlashcardsScreen, username=self.username)
-
-import customtkinter as ctk
-from tkinter import messagebox
-import requests
-import random
-import time
+        self.master.switch_screen(MyFlashcardsScreen, username=self.username)
 
 class BaseManagemnetFlashcardScreen(ctk.CTkFrame):
     def __init__(self, master, username, title=""):
@@ -172,7 +164,7 @@ class BaseManagemnetFlashcardScreen(ctk.CTkFrame):
         self.label = ctk.CTkLabel(self, text=title, font=("Helvetica", 24))
         self.label.place(relx=0.5, rely=0.1, anchor="center")
 
-        self.name_entry = ctk.CTkEntry(self, placeholder_text="Flashcard name:", width=300)
+        self.name_entry = ctk.CTkEntry(self, placeholder_text="name", width=300)
         self.name_entry.place(relx=0.5, rely=0.2, anchor="center")
 
         self.add_button = ctk.CTkButton(self, text="+", command=self.add_flashcard)
@@ -196,10 +188,10 @@ class BaseManagemnetFlashcardScreen(ctk.CTkFrame):
         flashcard_frame = ctk.CTkFrame(self.flashcard_frame)
         flashcard_frame.pack(fill="x", pady=5)
         
-        title_entry = ctk.CTkEntry(flashcard_frame, placeholder_text="Flashcard title", width=250)
+        title_entry = ctk.CTkEntry(flashcard_frame, placeholder_text="1. word", width=250)
         title_entry.pack(side="left", padx=(5, 10))
 
-        content_entry = ctk.CTkEntry(flashcard_frame, placeholder_text="Flashcard content", width=250)
+        content_entry = ctk.CTkEntry(flashcard_frame, placeholder_text="2. word", width=250)
         content_entry.pack(side="left", padx=(0, 5))
 
         self.flashcard_frames.append((flashcard_frame, title_entry, content_entry))
@@ -296,6 +288,118 @@ class EditFlashcardScreen(BaseManagemnetFlashcardScreen):
                 messagebox.showerror("Error", response_data.get("message"))
         else:
             messagebox.showwarning("Error", "Fields are missing")
+
+class BaseFlashcardsScreen(ctk.CTkFrame):
+    def __init__(self, master, username, label_text=None):
+        super().__init__(master)
+        self.master = master
+        self.username = username
+        self.flashcards = []
+
+        if label_text:
+            self.label = ctk.CTkLabel(self, text=label_text, font=("Helvetica", 24))
+            self.label.place(relx=0.5, rely=0.1, anchor="center")
+
+        self.back_button = ctk.CTkButton(self, text="Back to menu", command=self.back_to_menu, width=200, height=50)
+        self.back_button.place(relx=0.5, rely=0.95, anchor="center")
+
+        self.flashcard_frame = ctk.CTkScrollableFrame(self, width=700, height=400)
+        self.flashcard_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+    def clear_flashcards(self):
+        for widget in self.flashcard_frame.winfo_children():
+            widget.destroy()
+
+    def load_flashcards(self, url, isMine=False):
+        response = requests.get(url)
+        if response.status_code == 200:
+            flashcards_data = response.json()
+            self.flashcards = flashcards_data
+            self.show_flashcards(isMine=isMine)
+
+    def show_flashcard_details(self, flashcard):
+        pass
+        #self.master.switch_screen(FlashCardScreen, flashcard=flashcard, username=self.username)
+
+    def edit_flashcard(self, flashcard):
+        self.master.switch_screen(EditFlashcardScreen, username=self.username, flashcard=flashcard)
+
+    def show_flashcards(self, isMine):
+        self.clear_flashcards()
+        for i, flashcard in enumerate(self.flashcards):
+                flashcard_button = ctk.CTkButton(
+                    self.flashcard_frame,
+                    text=flashcard['title'],
+                    width=150,
+                    height=150,
+                    command=lambda f=flashcard: self.show_flashcard_details(f)
+                )
+                flashcard_button.grid(row=i // 4 * 2, column=i % 4, padx=10, pady=(10, 5))
+
+                if isMine:
+                    button_frame = ctk.CTkFrame(self.flashcard_frame)
+                    button_frame.grid(row=i // 4 * 2 + 1, column=i % 4, padx=10, pady=(0, 10))
+
+                    edit_button = ctk.CTkButton(
+                        button_frame,
+                        text="✎",
+                        width=60,
+                        height=30,
+                        command=lambda f=flashcard: self.edit_flashcard(f)
+                    )
+                    edit_button.pack(side="left", padx=(0, 5))
+
+                    delete_button = ctk.CTkButton(
+                        button_frame,
+                        text="❌",
+                        width=60,
+                        height=30,
+                        command=lambda f=flashcard: self.delete_flashcard(f)
+                    )
+                    delete_button.pack(side="left", padx=(5, 0))
+
+    def delete_flashcard(self, flashcard):
+        confirm = messagebox.askyesno("Delete flashcard?", "Are you sure you want to delete this flashcard?")
+        if confirm:
+            _id = flashcard.get("id")
+            url = f"http://localhost:5000/flashcards/delete/{_id}"
+            response = requests.delete(url)
+            response_data = response.json()
+            if response.status_code == 200:
+                messagebox.showinfo("Success", response_data.get("message"))
+                self.flashcards = [data for data in self.flashcards if data["id"] != _id]
+                self.show_flashcards(isMine=True)
+            else:
+                messagebox.showerror("Error", response_data.get("message"))
+
+    def back_to_menu(self):
+        self.master.switch_screen(MenuScreen, username=self.username)
+
+class SearchFlashcardsScreen(BaseFlashcardsScreen):
+    def __init__(self, master, username):
+        super().__init__(master, username)
+        
+        self.search_entry = ctk.CTkEntry(self, placeholder_text="Name", width=400)
+        self.search_entry.place(relx=0.3, rely=0.1, anchor="center")
+
+        self.search_button = ctk.CTkButton(self, text="Search", command=self.search, width=100, height=20)
+        self.search_button.place(relx=0.65, rely=0.1, anchor="center")
+
+        self.load_flashcards("http://localhost:5000/flashcards")
+    
+    def search(self):
+        search_query = self.search_entry.get()
+        if search_query:
+            url = f"http://localhost:5000/flashcards/search/{search_query}"
+            self.load_flashcards(url)
+        else:
+            self.load_flashcards("http://localhost:5000/flashcards")
+
+
+class MyFlashcardsScreen(BaseFlashcardsScreen):
+    def __init__(self, master, username):
+        super().__init__(master, username, "My flashcards")
+        self.load_flashcards(f"http://localhost:5000/flashcards/{self.username}", isMine=True)
 
 if __name__ == "__main__":
     app = FlashcardApp()
