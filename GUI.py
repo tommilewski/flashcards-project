@@ -147,8 +147,7 @@ class MenuScreen(ctk.CTkFrame):
         self.master.switch_screen(LoginScreen)
 
     def create_flashcard(self):
-        pass
-        #self.master.switch_screen(CreateFlashcardScreen, username=self.username)
+        self.master.switch_screen(CreateFlashcardScreen, username=self.username)
 
     def show_flashcards(self):
         pass
@@ -157,6 +156,146 @@ class MenuScreen(ctk.CTkFrame):
     def show_my_flashcards(self):
         pass
         #self.master.switch_screen(MyFlashcardsScreen, username=self.username)
+
+import customtkinter as ctk
+from tkinter import messagebox
+import requests
+import random
+import time
+
+class BaseManagemnetFlashcardScreen(ctk.CTkFrame):
+    def __init__(self, master, username, title=""):
+        super().__init__(master)
+        self.master = master
+        self.username = username
+
+        self.label = ctk.CTkLabel(self, text=title, font=("Helvetica", 24))
+        self.label.place(relx=0.5, rely=0.1, anchor="center")
+
+        self.name_entry = ctk.CTkEntry(self, placeholder_text="Flashcard name:", width=300)
+        self.name_entry.place(relx=0.5, rely=0.2, anchor="center")
+
+        self.add_button = ctk.CTkButton(self, text="+", command=self.add_flashcard)
+        self.add_button.place(relx=0.4, rely=0.3, anchor="center")
+
+        self.remove_button = ctk.CTkButton(self, text="-", command=self.remove_flashcard)
+        self.remove_button.place(relx=0.6, rely=0.3, anchor="center")
+
+        self.save_button = ctk.CTkButton(self, text="Save flashcard", command=self.save_flashcards)
+        self.save_button.place(relx=0.4, rely=0.9, anchor="center")
+
+        self.back_button = ctk.CTkButton(self, text="Back to menu", command=self.back_to_menu)
+        self.back_button.place(relx=0.6, rely=0.9, anchor="center")
+
+        self.flashcard_frame = ctk.CTkScrollableFrame(self, width=500, height=50)
+        self.flashcard_frame.place(relx=0.5, rely=0.6, anchor="center")
+
+        self.flashcard_frames = []
+
+    def add_flashcard(self):
+        flashcard_frame = ctk.CTkFrame(self.flashcard_frame)
+        flashcard_frame.pack(fill="x", pady=5)
+        
+        title_entry = ctk.CTkEntry(flashcard_frame, placeholder_text="Flashcard title", width=250)
+        title_entry.pack(side="left", padx=(5, 10))
+
+        content_entry = ctk.CTkEntry(flashcard_frame, placeholder_text="Flashcard content", width=250)
+        content_entry.pack(side="left", padx=(0, 5))
+
+        self.flashcard_frames.append((flashcard_frame, title_entry, content_entry))
+
+    def remove_flashcard(self):
+        if len(self.flashcard_frames) > 1:
+            flashcard_frame, title_entry, content_entry = self.flashcard_frames.pop()
+            flashcard_frame.destroy()
+
+    def save_flashcards(self):
+        pass
+
+    def back_to_menu(self):
+        self.master.switch_screen(MenuScreen, username=self.username)
+
+
+class CreateFlashcardScreen(BaseManagemnetFlashcardScreen):
+    def __init__(self, master, username):
+        super().__init__(master, username, title="Create Flashcard")
+        super().add_flashcard()
+
+    def save_flashcards(self):
+        flashcards_data = {}
+
+        for _, title_entry, content_entry in self.flashcard_frames:
+            title = title_entry.get()
+            content = content_entry.get()
+            if title and content:
+                flashcards_data[title] = content
+
+        title = self.name_entry.get()
+        if flashcards_data and title:
+            url = 'http://localhost:5000/flashcards/add'
+            data = {
+                'username': self.username,
+                'content': flashcards_data,
+                'title': title
+            }
+            response = requests.post(url, json=data)
+            response_data = response.json()
+            if response.status_code == 201:
+                messagebox.showinfo("Success", response_data.get("message"))
+                self.back_to_menu()
+            else:
+                messagebox.showerror("Error", response_data.get("message"))
+        else:
+            messagebox.showwarning("Error", "Fields are missing")
+
+
+class EditFlashcardScreen(BaseManagemnetFlashcardScreen):
+    def __init__(self, master, username, flashcard):
+        super().__init__(master, username, title="Edit Flashcard")
+        self.flashcard = flashcard
+        self.load_content()
+        self.name_entry.insert(0, flashcard.get("title"))
+
+    def load_content(self):
+        for key, value in self.flashcard.get("content", {}).items():
+            flashcard_frame = ctk.CTkFrame(self.flashcard_frame)
+            flashcard_frame.pack(fill="x", pady=5)
+
+            title_entry = ctk.CTkEntry(flashcard_frame, placeholder_text="Flashcard title", width=250)
+            title_entry.insert(0, key)
+            title_entry.pack(side="left", padx=(5, 10))
+
+            content_entry = ctk.CTkEntry(flashcard_frame, placeholder_text="Flashcard content", width=250)
+            content_entry.insert(0, value)
+            content_entry.pack(side="left", padx=(0, 5))
+
+            self.flashcard_frames.append((flashcard_frame, title_entry, content_entry))
+
+    def save_flashcards(self):
+        flashcards_data = {}
+
+        for _, title_entry, content_entry in self.flashcard_frames:
+            title = title_entry.get()
+            content = content_entry.get()
+            if title and content:
+                flashcards_data[title] = content
+
+        title = self.name_entry.get()
+        if flashcards_data and title:
+            url = f'http://localhost:5000/flashcards/edit/{self.flashcard.get("id")}'
+            data = {
+                'content': flashcards_data,
+                'title': title
+            }
+            response = requests.put(url, json=data)
+            response_data = response.json()
+            if response.status_code == 200:
+                messagebox.showinfo("Success", response_data.get("message"))
+                self.back_to_menu()
+            else:
+                messagebox.showerror("Error", response_data.get("message"))
+        else:
+            messagebox.showwarning("Error", "Fields are missing")
 
 if __name__ == "__main__":
     app = FlashcardApp()
