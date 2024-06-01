@@ -10,6 +10,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
+    flashcards = db.relationship('FlashCard', backref='user', lazy=True)
 
 class FlashCard(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -59,7 +60,7 @@ def login():
 @app.route('/flashcards', methods=['GET'])
 def get_flashcards():
     flashcards = FlashCard.query.all()
-    flashcards_info = [{'id': flashcard.id, 'title': flashcard.title, 'content': flashcard.content} for flashcard in flashcards]
+    flashcards_info = [{'id': flashcard.id, 'title': flashcard.title, 'content': flashcard.content, 'username': flashcard.user.username} for flashcard in flashcards]
     return flashcards_info
 
 @app.route('/flashcards/<string:username>', methods=['GET'])
@@ -70,7 +71,7 @@ def get_flashcards_by_username(username):
         return jsonify({'message': 'User not found'}), 404
 
     flashcards = FlashCard.query.filter_by(user_id=user.id).all()
-    return [{'id': flashcard.id, 'title': flashcard.title, 'content': flashcard.content} for flashcard in flashcards]
+    return [{'id': flashcard.id, 'title': flashcard.title, 'content': flashcard.content, 'username': flashcard.user.username} for flashcard in flashcards]
 
 
 @app.route('/flashcards/add', methods=['POST'])
