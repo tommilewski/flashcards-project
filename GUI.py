@@ -108,12 +108,16 @@ class FlashcardApp(ctk.CTk):
     def exit_application(self, event=None):
         self.destroy()
 
-    def switch_screen(self, new_screen, username=None, flashcard=None, stats=None):
+    def switch_screen(self, new_screen, username=None, flashcard=None, stats=None, user=None):
         self.current_screen.destroy()
-        if username and flashcard:
+        if username and flashcard and user:
+            self.current_screen = new_screen(self, username=username, flashcard=flashcard, user=user)
+        elif username and flashcard:
             self.current_screen = new_screen(self, username=username, flashcard=flashcard)
         elif username and stats:
             self.current_screen = new_screen(self, username=username, stats=stats)
+        elif username and user:
+            self.current_screen = new_screen(self, username=username, user=user)
         elif username:
             self.current_screen = new_screen(self, username=username)
         elif flashcard:
@@ -290,11 +294,12 @@ class EditFlashcardScreen(BaseManagemnetFlashcardScreen):
             messagebox.showwarning("Error", "Fields are missing")
 
 class BaseFlashcardsScreen(ctk.CTkFrame):
-    def __init__(self, master, username, label_text=None):
+    def __init__(self, master, username, label_text=None, user=None):
         super().__init__(master)
         self.master = master
         self.username = username
         self.flashcards = []
+        self.user = user
 
         if label_text:
             self.label = ctk.CTkLabel(self, text=label_text, font=("Helvetica", 24))
@@ -318,7 +323,8 @@ class BaseFlashcardsScreen(ctk.CTkFrame):
             self.show_flashcards(isMine=isMine)
 
     def show_flashcard_details(self, flashcard):
-        self.master.switch_screen(DetailsFlashardScreen, flashcard=flashcard, username=self.username)
+        print(self.user)
+        self.master.switch_screen(DetailsFlashardScreen, flashcard=flashcard, username=self.username, user=self.user)
 
     def edit_flashcard(self, flashcard):
         self.master.switch_screen(EditFlashcardScreen, username=self.username, flashcard=flashcard)
@@ -400,19 +406,26 @@ class MyFlashcardsScreen(BaseFlashcardsScreen):
         super().__init__(master, username, "My flashcards")
         self.load_flashcards(f"http://localhost:5000/flashcards/{self.username}", isMine=True)
 
+class UserFlashcardsScreen(BaseFlashcardsScreen):
+    def __init__(self, master, username, user):
+        super().__init__(master, username, f"{user} flashcards", user)
+        self.load_flashcards(f"http://localhost:5000/flashcards/{user}")
+
 class DetailsFlashardScreen(ctk.CTkFrame):
-    def __init__(self, master, flashcard, username):
+    def __init__(self, master, flashcard, username, user=None):
         super().__init__(master)
         self.master = master
         self.flashcard = flashcard
         self.current_index = 0
         self.username = username
+        if user:
+            self.user = user
         
         self.content = self.flashcard['content']
         self.passwords = list(self.content.keys())
         self.answers = list(self.content.values())
         
-        self.flashcard_title = ctk.CTkLabel(self, text=flashcard['title'], font=("Helvetica", 18))
+        self.flashcard_title = ctk.CTkLabel(self, text=f"name: {flashcard['title']}", font=("Helvetica", 18))
         self.flashcard_title.place(relx=0.5, rely=0.1, anchor="center")
 
         flashcard_button = ctk.CTkButton(self, text=self.passwords[self.current_index], width=150, height=150)
@@ -424,6 +437,12 @@ class DetailsFlashardScreen(ctk.CTkFrame):
 
         self.right_arrow_button = ctk.CTkButton(self, text="→", command=self.scroll_right, width=50, height=50)
         self.right_arrow_button.place(relx=0.9, rely=0.3, anchor="center")
+
+        self.username_label = ctk.CTkLabel(self, text=f"Flashcard created by: ", font=("Helvetica", 12))
+        self.username_label.place(relx=0.4, rely=0.55, anchor="center")
+
+        self.username_button = ctk.CTkButton(self, text=self.flashcard['username'], command=self.user_flashcards, width=100, height=50)
+        self.username_button.place(relx=0.6, rely=0.55, anchor="center")
 
         self.check_knowledge_button = ctk.CTkButton(self, text="Check knowledge", command=self.check_knowledge, width=200, height=50)
         self.check_knowledge_button.place(relx=0.5, rely=0.75, anchor="center")
@@ -454,7 +473,7 @@ class DetailsFlashardScreen(ctk.CTkFrame):
 
     def show_next(self):
         for widget in self.winfo_children():
-            if widget not in [self.flashcard_title, self.left_arrow_button, self.right_arrow_button, self.back_button, self.check_knowledge_button, self.memory_game_button]:
+            if widget not in [self.flashcard_title, self.left_arrow_button, self.right_arrow_button, self.back_button, self.check_knowledge_button, self.memory_game_button, self.username_button, self.username_label]:
                 widget.destroy()
         flashcard_button = ctk.CTkButton(self, text=self.passwords[self.current_index], width=150, height=150)
         flashcard_button.place(relx=0.5, rely=0.3, anchor="center")
@@ -465,10 +484,18 @@ class DetailsFlashardScreen(ctk.CTkFrame):
             button.configure(text=answer)
         else:
             button.configure(text=password)
-    
+
+    def user_flashcards(self):
+        if self.flashcard['username'] == self.username:
+            self.master.switch_screen(MyFlashcardsScreen, username=self.username)
+        else:
+            self.master.switch_screen(UserFlashcardsScreen, username=self.username, user=self.flashcard['username'])
+
     def back(self):
         if self.flashcard['username'] == self.username:
             self.master.switch_screen(MyFlashcardsScreen, username=self.username)
+        elif self.flashcard['username'] == self.user:
+            self.master.switch_screen(UserFlashcardsScreen, username=self.username, user=self.user)
         else:
             self.master.switch_screen(SearchFlashcardsScreen, username=self.username)
 
