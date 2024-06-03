@@ -259,8 +259,7 @@ class DetailsFlashardScreen(ctk.CTkFrame):
         self.flashcard = flashcard
         self.current_index = 0
         self.username = username
-        if user:
-            self.user = user
+        self.user = user
         
         self.content = self.flashcard['content']
         self.passwords = list(self.content.keys())
