@@ -33,7 +33,3 @@ class FlashcardApp(ctk.CTk):
         else:
             self.current_screen = new_screen(self)
         self.current_screen.pack(fill="both", expand=True)
-
-if __name__ == "__main__":
-    app = FlashcardApp()
-    app.mainloop()

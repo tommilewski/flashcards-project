@@ -55,7 +55,6 @@ class BaseManagemnetFlashcardScreen(ctk.CTkFrame):
         from menu import MenuScreen
         self.master.switch_screen(MenuScreen, username=self.username)
 
-
 class CreateFlashcardScreen(BaseManagemnetFlashcardScreen):
     def __init__(self, master, username):
         super().__init__(master, username, title="Create Flashcard")
@@ -87,7 +86,6 @@ class CreateFlashcardScreen(BaseManagemnetFlashcardScreen):
                 messagebox.showerror("Error", response_data.get("message"))
         else:
             messagebox.showwarning("Error", "Fields are missing")
-
 
 class EditFlashcardScreen(BaseManagemnetFlashcardScreen):
     def __init__(self, master, username, flashcard):
@@ -243,7 +241,6 @@ class SearchFlashcardsScreen(BaseFlashcardsScreen):
             self.load_flashcards(url)
         else:
             self.load_flashcards("http://localhost:5000/flashcards")
-
 
 class MyFlashcardsScreen(BaseFlashcardsScreen):
     def __init__(self, master, username):
